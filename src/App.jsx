@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   Leaf, Wheat, Cherry, Flame, Flower2, Sprout,
-  AlertTriangle, Clock, RefreshCw,
+  AlertTriangle, Clock, RefreshCw, Thermometer, Droplets, Wind, Sun as SunIcon, Beaker,
   ChevronDown, ChevronUp, Terminal, Moon, Sun
 } from 'lucide-react'
 import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts'
@@ -57,7 +57,7 @@ function buildSensors() {
       ph:  new SensorNode(6.2,  5.5, 7.5, 0.015, 2),
       do_: new SensorNode(7.8,  4, 12, 0.05, 1),
       ec:  new SensorNode(1.3,  0.5, 3.0, 0.02, 2),
-      lv:  new SensorNode(78,   20, 100, 0.4, 1),
+      lv:  new SensorNode(78,   78, 78,  0,   1),
       no3: new SensorNode(150,  80, 250, 1.5, 0),
     },
     dwc: {
@@ -65,7 +65,7 @@ function buildSensors() {
       ph:  new SensorNode(5.9,  5.5, 7.5, 0.015, 2),
       do_: new SensorNode(8.4,  4, 12, 0.05, 1),
       ec:  new SensorNode(2.1,  0.5, 3.5, 0.02, 2),
-      lv:  new SensorNode(65,   20, 100, 0.4, 1),
+      lv:  new SensorNode(65,   65, 65,  0,   1),
       no3: new SensorNode(160,  80, 250, 1.5, 0),
     },
     crops: CROPS.map(c => ({
@@ -166,23 +166,25 @@ function KpiBar({ data, alerts }) {
 
       <div className="h-6 w-px bg-stone-200 dark:bg-stone-700" />
 
-      <KpiCell label="Розчин 1"    value={data.nft.lv}    unit="%" status={lvStatus(data.nft.lv)} />
-      <KpiCell label="Розчин 2"    value={data.dwc.lv}    unit="%" status={lvStatus(data.dwc.lv)} />
+      <KpiCell label="Розчин 1"    value={data.nft.lv}    unit="%" status={lvStatus(data.nft.lv)} Icon={Beaker} />
+      <KpiCell label="Розчин 2"    value={data.dwc.lv}    unit="%" status={lvStatus(data.dwc.lv)} Icon={Beaker} />
 
       <div className="h-6 w-px bg-stone-200 dark:bg-stone-700" />
 
-      <KpiCell label="Температура" value={data.room.temp}  unit="°C" />
-      <KpiCell label="Вологість"   value={data.room.hum}   unit="%" />
-      <KpiCell label="CO₂"         value={data.room.co2}   unit="ppm" status={co2S} />
-      <KpiCell label="Освітлення"  value={data.room.lux}   unit="лк" />
+      <KpiCell label="Температура" value={data.room.temp}  unit="°C"  Icon={Thermometer} />
+      <KpiCell label="Вологість"   value={data.room.hum}   unit="%"   Icon={Droplets} />
+      <KpiCell label="CO₂"         value={data.room.co2}   unit="ppm" Icon={Wind} status={co2S} />
+      <KpiCell label="Освітлення"  value={data.room.lux}   unit="лк"  Icon={SunIcon} />
     </div>
   )
 }
 
-function KpiCell({ label, value, unit, status = 'ok' }) {
+function KpiCell({ label, value, unit, status = 'ok', Icon }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-xs text-stone-400 dark:text-stone-500">{label}</span>
+      <span className="text-xs text-stone-400 dark:text-stone-500 flex items-center gap-1">
+        {Icon && <Icon size={11} className="opacity-60" />}{label}
+      </span>
       <div className="flex items-baseline gap-1">
         <span className={`mono text-2xl font-semibold leading-none ${valCls(status)}`}>{value}</span>
         <span className="text-sm text-stone-400">{unit}</span>
