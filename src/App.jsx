@@ -2,22 +2,19 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   Leaf, Wheat, Cherry, Flame, Flower2, Sprout,
   AlertTriangle, Clock, RefreshCw, Thermometer, Droplets, Wind, Sun as SunIcon, Beaker,
-  ChevronDown, ChevronUp, Terminal, Moon, Sun
+  ChevronDown, ChevronUp, Terminal,
 } from 'lucide-react'
 import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts'
 
 // ─── CROPS ────────────────────────────────────────────────────────────────────
-// medium: 'hydro' | 'soil'
 const CROPS = [
-  // Hydroponic
-  { id: 'lettuce',    name: 'Салат',                  en: 'Lettuce',           medium: 'hydro', Icon: Leaf,    color: '#2e7d52', optimalPh: [6.0, 7.0], optimalTemp: [16, 22] },
-  { id: 'spinach',    name: 'Шпинат',                 en: 'Spinach',           medium: 'hydro', Icon: Leaf,    color: '#267060', optimalPh: [6.0, 7.5], optimalTemp: [15, 20] },
-  // Soil
-  { id: 'strawberry', name: 'Полуниця',               en: 'Strawberry',        medium: 'soil',  Icon: Cherry,  color: '#c0455a', optimalPh: [5.5, 6.5], optimalTemp: [18, 24] },
-  { id: 'wheat',      name: 'Пшениця',                en: 'Wheat',             medium: 'soil',  Icon: Wheat,   color: '#a07828', optimalPh: [6.0, 7.0], optimalTemp: [15, 22] },
-  { id: 'tomato',     name: 'Томат',                  en: 'Tomato',            medium: 'soil',  Icon: Sprout,  color: '#b53a3a', optimalPh: [5.5, 6.5], optimalTemp: [20, 26] },
-  { id: 'pepper',     name: 'Перець декоративний',    en: 'Decorative Pepper', medium: 'soil',  Icon: Flame,   color: '#b86030', optimalPh: [5.5, 6.8], optimalTemp: [21, 28] },
-  { id: 'hosta',      name: 'Хоста мінія',            en: 'Hosta',             medium: 'soil',  Icon: Flower2, color: '#6a58a8', optimalPh: [6.0, 7.5], optimalTemp: [14, 22] },
+  { id: 'lettuce',    name: 'Салат',               en: 'Lettuce',           medium: 'hydro', Icon: Leaf,    color: '#2e7d52', optimalPh: [6.0, 7.0], optimalTemp: [16, 22] },
+  { id: 'spinach',    name: 'Шпинат',              en: 'Spinach',           medium: 'hydro', Icon: Leaf,    color: '#267060', optimalPh: [6.0, 7.5], optimalTemp: [15, 20] },
+  { id: 'strawberry', name: 'Полуниця',            en: 'Strawberry',        medium: 'soil',  Icon: Cherry,  color: '#c0455a', optimalPh: [5.5, 6.5], optimalTemp: [18, 24] },
+  { id: 'wheat',      name: 'Пшениця',             en: 'Wheat',             medium: 'soil',  Icon: Wheat,   color: '#a07828', optimalPh: [6.0, 7.0], optimalTemp: [15, 22] },
+  { id: 'tomato',     name: 'Томат',               en: 'Tomato',            medium: 'soil',  Icon: Sprout,  color: '#b53a3a', optimalPh: [5.5, 6.5], optimalTemp: [20, 26] },
+  { id: 'pepper',     name: 'Перець декоративний', en: 'Decorative Pepper', medium: 'soil',  Icon: Flame,   color: '#b86030', optimalPh: [5.5, 6.8], optimalTemp: [21, 28] },
+  { id: 'hosta',      name: 'Хоста міні',          en: 'Hosta',             medium: 'soil',  Icon: Flower2, color: '#6a58a8', optimalPh: [6.0, 7.5], optimalTemp: [14, 22] },
 ]
 
 // ─── SENSOR ENGINE ────────────────────────────────────────────────────────────
@@ -82,39 +79,38 @@ function buildSensors() {
 }
 
 // ─── STATUS HELPERS ───────────────────────────────────────────────────────────
-const phStatus  = v => v < 5.4 || v > 7.6 ? 'crit' : v < 5.8 || v > 7.2 ? 'warn' : 'ok'
-const no3Status = v => v > 240 ? 'crit' : v > 220 ? 'warn' : 'ok'
-const doStatus  = v => v < 4.5 ? 'crit' : v < 6.0 ? 'warn' : 'ok'
-const lvStatus  = v => v < 25 ? 'crit' : v < 40 ? 'warn' : 'ok'
+const phStatus    = v => v < 5.4 || v > 7.6 ? 'crit' : v < 5.8 || v > 7.2 ? 'warn' : 'ok'
+const no3Status   = v => v > 240 ? 'crit' : v > 220 ? 'warn' : 'ok'
+const doStatus    = v => v < 4.5 ? 'crit' : v < 6.0 ? 'warn' : 'ok'
+const lvStatus    = v => v < 25 ? 'crit' : v < 40 ? 'warn' : 'ok'
 const moistStatus = v => v < 35 || v > 90 ? 'warn' : 'ok'
 
 const valCls = s =>
-  s === 'crit' ? 'text-red-600 dark:text-red-400' :
-  s === 'warn' ? 'text-amber-600 dark:text-amber-400' :
-  'text-stone-800 dark:text-stone-100'
+  s === 'crit' ? 'text-red-400' :
+  s === 'warn' ? 'text-amber-400' :
+  'text-white'
 
 const dotCls = s =>
   s === 'crit' ? 'bg-red-500' :
   s === 'warn' ? 'bg-amber-400' :
-  'bg-emerald-500'
+  'bg-emerald-400'
 
 // ─── SPARKLINE ────────────────────────────────────────────────────────────────
-let _sparkId = 0
-function Spark({ data, stroke = '#94a3b8', height = 32 }) {
-  const id = useRef(`sk${++_sparkId}`).current
+function Spark({ data, stroke = '#00D5BE', height = 32 }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
       <AreaChart data={data} margin={{ top: 2, right: 0, left: 0, bottom: 2 }}>
-        <defs>
-          <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"   stopColor={stroke} stopOpacity={0.2} />
-            <stop offset="100%" stopColor={stroke} stopOpacity={0}   />
-          </linearGradient>
-        </defs>
         <YAxis domain={['dataMin', 'dataMax']} hide />
-        <Area type="monotone" dataKey="v"
-          stroke={stroke} strokeWidth={1.5}
-          fill={`url(#${id})`} dot={false} isAnimationActive={false} />
+        <Area
+          type="linear"
+          dataKey="v"
+          stroke={stroke}
+          strokeWidth={1.5}
+          fill={stroke}
+          fillOpacity={0.15}
+          dot={false}
+          isAnimationActive={false}
+        />
       </AreaChart>
     </ResponsiveContainer>
   )
@@ -134,60 +130,61 @@ const LOG_TEMPLATES = [
   () => `[ZIGBEE] Усі вузли в мережі`,
 ]
 
-// ─── CARD SHELL ───────────────────────────────────────────────────────────────
+// ─── CARD ─────────────────────────────────────────────────────────────────────
 function Card({ children, className = '' }) {
   return (
-    <div className={`bg-white dark:bg-[#1e1d1b] rounded-3xl shadow-[0_2px_16px_rgba(0,0,0,0.06)] dark:shadow-[0_2px_20px_rgba(0,0,0,0.35)] ${className}`}>
+    <div style={{ border: '3px solid #E0E0E0', backgroundColor: '#1A1A1A' }} className={className}>
       {children}
     </div>
   )
 }
 
-// ─── KPI BAR ─────────────────────────────────────────────────────────────────
+// ─── KPI BAR ──────────────────────────────────────────────────────────────────
 function KpiBar({ data, alerts }) {
   const overallS = alerts === 0 ? 'ok' : alerts > 2 ? 'crit' : 'warn'
   const co2S = data.room.co2 > 1200 ? 'crit' : data.room.co2 > 900 ? 'warn' : 'ok'
 
   return (
-    <div className="flex flex-wrap items-center gap-8 py-2">
-
-      {/* Status */}
-      <div className="flex items-center gap-2.5">
-        <div className={`w-2.5 h-2.5 rounded-full ${dotCls(overallS)}`} />
-        <span className={`text-lg font-semibold ${overallS === 'ok' ? 'text-emerald-700' : overallS === 'warn' ? 'text-amber-600' : 'text-red-600'}`}>
+    <div
+      className="flex flex-wrap items-center gap-8 py-4 px-6"
+      style={{ border: '3px solid #E0E0E0', backgroundColor: '#1A1A1A' }}
+    >
+      <div className="flex items-center gap-3">
+        <div className={`w-3 h-3 shrink-0 ${dotCls(overallS)}`} />
+        <span className={`text-lg font-black uppercase tracking-wide ${overallS === 'ok' ? 'text-emerald-400' : overallS === 'warn' ? 'text-amber-400' : 'text-red-400'}`}>
           {overallS === 'ok' ? 'Підключення активне' : overallS === 'warn' ? 'Увага' : 'Критично'}
         </span>
         {alerts > 0 && (
-          <span className="text-sm text-stone-400 flex items-center gap-1">
-            <AlertTriangle size={12} className="text-amber-400" />{alerts} сигнал{alerts === 1 ? '' : 'и'}
+          <span className="text-sm text-amber-400 flex items-center gap-1 font-black">
+            <AlertTriangle size={12} />{alerts} сигнал{alerts === 1 ? '' : 'и'}
           </span>
         )}
       </div>
 
-      <div className="h-6 w-px bg-stone-200 dark:bg-stone-700" />
+      <div className="h-10 w-px bg-white/30 shrink-0" />
 
-      <KpiCell label="Розчин 1"    value={data.nft.lv}    unit="%" status={lvStatus(data.nft.lv)} Icon={Beaker} />
-      <KpiCell label="Розчин 2"    value={data.dwc.lv}    unit="%" status={lvStatus(data.dwc.lv)} Icon={Beaker} />
+      <KpiCell label="Розчин 1"    value={data.nft.lv}   unit="%" status={lvStatus(data.nft.lv)} Icon={Beaker} />
+      <KpiCell label="Розчин 2"    value={data.dwc.lv}   unit="%" status={lvStatus(data.dwc.lv)} Icon={Beaker} />
 
-      <div className="h-6 w-px bg-stone-200 dark:bg-stone-700" />
+      <div className="h-10 w-px bg-white/30 shrink-0" />
 
-      <KpiCell label="Температура" value={data.room.temp}  unit="°C"  Icon={Thermometer} />
-      <KpiCell label="Вологість"   value={data.room.hum}   unit="%"   Icon={Droplets} />
-      <KpiCell label="CO₂"         value={data.room.co2}   unit="ppm" Icon={Wind} status={co2S} />
-      <KpiCell label="Освітлення"  value={data.room.lux}   unit="лк"  Icon={SunIcon} />
+      <KpiCell label="Температура" value={data.room.temp} unit="°C"  Icon={Thermometer} />
+      <KpiCell label="Вологість"   value={data.room.hum}  unit="%"   Icon={Droplets} />
+      <KpiCell label="CO₂"         value={data.room.co2}  unit="ppm" Icon={Wind} status={co2S} />
+      <KpiCell label="Освітлення"  value={data.room.lux}  unit="лк"  Icon={SunIcon} />
     </div>
   )
 }
 
 function KpiCell({ label, value, unit, status = 'ok', Icon }) {
   return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-xs text-stone-400 dark:text-stone-500 flex items-center gap-1">
-        {Icon && <Icon size={11} className="opacity-60" />}{label}
+    <div className="flex flex-col gap-1">
+      <span className="text-xs text-white uppercase tracking-widest flex items-center gap-1 font-black">
+        {Icon && <Icon size={11} />}{label}
       </span>
       <div className="flex items-baseline gap-1">
-        <span className={`mono text-2xl font-semibold leading-none ${valCls(status)}`}>{value}</span>
-        <span className="text-sm text-stone-400">{unit}</span>
+        <span className={`mono text-4xl font-black leading-none ${valCls(status)}`}>{value}</span>
+        <span className="text-base text-white/60 font-bold">{unit}</span>
       </div>
     </div>
   )
@@ -195,27 +192,25 @@ function KpiCell({ label, value, unit, status = 'ok', Icon }) {
 
 // ─── TANK LEVEL ───────────────────────────────────────────────────────────────
 function TankLevel({ value, status }) {
-  const fillColor = status === 'crit' ? '#ef4444' : status === 'warn' ? '#f59e0b' : '#00D5BE'
-  const textCls = status === 'crit' ? 'text-red-500' : status === 'warn' ? 'text-amber-500' : 'text-stone-500 dark:text-stone-400'
+  const fillColor = status === 'crit' ? '#EF4444' : status === 'warn' ? '#F59E0B' : '#00D5BE'
 
   return (
-    <div className="flex items-center gap-2.5">
-      {/* Vertical tank */}
+    <div className="flex items-center gap-2">
       <div className="flex flex-col items-center gap-1">
-        <span className="text-[9px] uppercase tracking-widest text-stone-400 dark:text-stone-600">Рівень</span>
-        <div className="relative w-7 h-10 rounded-md border-2 border-stone-200 dark:border-stone-700 overflow-hidden bg-stone-50 dark:bg-stone-800">
-          {/* Tick marks */}
+        <span className="text-[9px] uppercase tracking-widest text-white font-black">Рівень</span>
+        <div
+          className="relative w-7 h-10 overflow-hidden bg-black"
+          style={{ border: '2px solid rgba(255,255,255,0.5)' }}
+        >
           {[25, 50, 75].map(t => (
-            <div key={t} className="absolute w-full border-t border-stone-200/70 dark:border-stone-700/50"
-              style={{ bottom: `${t}%` }} />
+            <div key={t} className="absolute w-full" style={{ bottom: `${t}%`, borderTop: '1px solid rgba(255,255,255,0.2)' }} />
           ))}
-          {/* Fill */}
           <div
-            className="absolute bottom-0 left-0 right-0 transition-all duration-1000 rounded-sm"
-            style={{ height: `${value}%`, backgroundColor: fillColor, opacity: 0.85 }}
+            className="absolute bottom-0 left-0 right-0 transition-all duration-1000"
+            style={{ height: `${value}%`, backgroundColor: fillColor }}
           />
         </div>
-        <span className={`mono text-[11px] font-semibold leading-none ${textCls}`}>{value}%</span>
+        <span className="mono text-[11px] font-black leading-none text-white">{value}%</span>
       </div>
     </div>
   )
@@ -231,21 +226,19 @@ function HydroCard({ name, abbr, sys, cropNames }) {
   const overallS = [phS, no3S, doS, lvS].some(s => s === 'crit') ? 'crit'
     : [phS, no3S, doS, lvS].some(s => s === 'warn') ? 'warn' : 'ok'
 
-  const sparkStroke = phS === 'crit' ? '#ef4444' : phS === 'warn' ? '#f59e0b' : '#6ee7b7'
+  const sparkStroke = phS === 'crit' ? '#EF4444' : phS === 'warn' ? '#F59E0B' : '#00D5BE'
 
   return (
-    <Card className="p-6 flex flex-col gap-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <Card className="p-5 flex flex-col gap-4">
+      <div className="flex items-center justify-between pb-3" style={{ borderBottom: '2px solid rgba(255,255,255,0.2)' }}>
         <div className="flex items-center gap-2.5">
-          <div className={`w-2 h-2 rounded-full ${dotCls(overallS)}`} />
-          <span className="font-semibold text-stone-800 dark:text-stone-100 text-base">{name}</span>
-          <span className="text-sm text-stone-400 dark:text-stone-600">{abbr}</span>
+          <div className={`w-2.5 h-2.5 shrink-0 ${dotCls(overallS)}`} />
+          <span className="font-black text-white text-base uppercase tracking-wide">{name}</span>
+          <span className="text-xs text-white/50 font-bold">{abbr}</span>
         </div>
         <TankLevel value={lv} status={lvS} />
       </div>
 
-      {/* Metrics */}
       <div className="grid grid-cols-5 gap-3">
         {[
           { label: 'pH',       v: ph,  s: phS  },
@@ -255,26 +248,24 @@ function HydroCard({ name, abbr, sys, cropNames }) {
           { label: 'Вода °C',  v: wt,  s: 'ok' },
         ].map(({ label, v, s }) => (
           <div key={label} className="flex flex-col gap-1.5 min-w-0">
-            <span className="text-[10px] text-stone-400 dark:text-stone-600 uppercase tracking-widest leading-none">{label}</span>
-            <span className={`mono text-2xl font-semibold leading-none ${valCls(s)}`}>{v}</span>
+            <span className="text-[10px] text-white uppercase tracking-widest leading-none font-black">{label}</span>
+            <span className={`mono text-2xl font-black leading-none ${valCls(s)}`}>{v}</span>
           </div>
         ))}
       </div>
 
-      {/* pH trend */}
       <div>
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-xs text-stone-400 dark:text-stone-600">pH тренд</span>
-          <span className="text-xs text-stone-300 dark:text-stone-700">40 відліків</span>
+        <div className="flex justify-between items-center mb-1.5">
+          <span className="text-[10px] text-white uppercase tracking-widest font-black">pH тренд</span>
+          <span className="text-[10px] text-white/40 font-bold">40 відліків</span>
         </div>
         <Spark data={phHist} stroke={sparkStroke} height={36} />
       </div>
 
-      {/* Crops */}
       {cropNames.length > 0 && (
-        <div className="flex flex-wrap gap-x-3 gap-y-0.5 pt-1">
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.2)' }}>
           {cropNames.map(n => (
-            <span key={n} className="text-sm text-stone-400 dark:text-stone-600">{n}</span>
+            <span key={n} className="text-sm text-white font-black uppercase tracking-wide">{n}</span>
           ))}
         </div>
       )}
@@ -284,27 +275,26 @@ function HydroCard({ name, abbr, sys, cropNames }) {
 
 // ─── CROP TABLE ───────────────────────────────────────────────────────────────
 const COL = '1fr 1.4fr 80px 72px 72px'
-
 const HYDRO_CROPS = CROPS.filter(c => c.medium === 'hydro')
 const SOIL_CROPS  = CROPS.filter(c => c.medium === 'soil')
 
 function CropTable({ cropData }) {
   return (
-    <Card className="overflow-hidden px-2 py-4">
-      <div className="px-4 pb-4">
-        <span className="text-xs text-stone-400 dark:text-stone-600 uppercase tracking-widest">Монітор культур</span>
+    <Card className="overflow-hidden">
+      <div className="px-5 py-3" style={{ borderBottom: '3px solid #E0E0E0' }}>
+        <span className="text-sm font-black text-white uppercase tracking-widest">Монітор культур</span>
       </div>
 
       <GroupHeader label="Гідропоніка" cols={['Культура', 'Зволоженість', 'Темп.', 'Люкс', 'EC']} />
-      {HYDRO_CROPS.map(crop => (
-        <CropRow key={crop.id} crop={crop} s={cropData.find(c => c.id === crop.id)} />
+      {HYDRO_CROPS.map((crop, i) => (
+        <CropRow key={crop.id} crop={crop} s={cropData.find(c => c.id === crop.id)} idx={i} />
       ))}
 
-      <div className="my-2" />
+      <div style={{ borderTop: '3px solid rgba(255,255,255,0.3)' }} />
 
       <GroupHeader label="Ґрунт" cols={['Культура', 'Вологість ґрунту', 'Темп.', 'Люкс', 'Родючість']} />
-      {SOIL_CROPS.map(crop => (
-        <CropRow key={crop.id} crop={crop} s={cropData.find(c => c.id === crop.id)} />
+      {SOIL_CROPS.map((crop, i) => (
+        <CropRow key={crop.id} crop={crop} s={cropData.find(c => c.id === crop.id)} idx={i} />
       ))}
     </Card>
   )
@@ -312,48 +302,49 @@ function CropTable({ cropData }) {
 
 function GroupHeader({ label, cols }) {
   return (
-    <div className="grid items-center px-4 py-2 gap-4 bg-stone-50 dark:bg-stone-800/60 rounded-xl mx-2 mb-1"
-      style={{ gridTemplateColumns: COL }}>
-      <span className="text-[10px] font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-widest">{label}</span>
+    <div
+      className="grid items-center px-5 py-2.5 gap-4"
+      style={{ gridTemplateColumns: COL, backgroundColor: '#2A2A2A', borderBottom: '2px solid rgba(255,255,255,0.3)' }}
+    >
+      <span className="text-[10px] font-black text-white uppercase tracking-widest">{label}</span>
       {cols.slice(1).map((h, i) => (
-        <span key={h} className={`text-[10px] text-stone-400 dark:text-stone-600 uppercase tracking-wide ${i > 0 ? 'text-right' : ''}`}>{h}</span>
+        <span key={h} className={`text-[10px] text-white uppercase tracking-wide font-black ${i > 0 ? 'text-right' : ''}`}>{h}</span>
       ))}
     </div>
   )
 }
 
-function CropRow({ crop, s }) {
+function CropRow({ crop, s, idx }) {
   if (!s) return null
   const mS = moistStatus(s.moist)
   const tempOk = s.temp >= crop.optimalTemp[0] && s.temp <= crop.optimalTemp[1]
+  const bg = idx % 2 === 1 ? '#222222' : '#1A1A1A'
 
   return (
     <div
-      className="grid items-center px-4 py-3.5 gap-4 mx-2 rounded-xl hover:bg-stone-50 dark:hover:bg-stone-800/50 transition-colors"
-      style={{ gridTemplateColumns: COL }}>
-
+      className="grid items-center px-5 py-3.5 gap-4"
+      style={{ gridTemplateColumns: COL, backgroundColor: bg, borderBottom: '1px solid rgba(255,255,255,0.08)' }}
+    >
       <div className="flex items-center gap-3 min-w-0">
-        <div className="w-1 h-7 rounded-full shrink-0" style={{ backgroundColor: crop.color }} />
-        <div className="min-w-0">
-          <div className="text-base font-medium text-stone-700 dark:text-stone-200 truncate">{crop.name}</div>
-        </div>
+        <div className="w-1.5 h-7 shrink-0" style={{ backgroundColor: crop.color }} />
+        <span className="text-base font-black text-white truncate uppercase tracking-wide">{crop.name}</span>
       </div>
 
       <div className="flex items-center gap-2.5 min-w-0">
-        <div className="flex-1 h-1 bg-stone-100 dark:bg-stone-700 rounded-full overflow-hidden">
+        <div className="flex-1 h-2 overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
           <div
-            className={`h-full rounded-full transition-all duration-1000 ${mS === 'warn' ? 'bg-amber-400' : 'bg-[#00D5BE]'}`}
-            style={{ width: `${Math.min(s.moist, 100)}%` }}
+            className="h-full transition-all duration-1000"
+            style={{ width: `${Math.min(s.moist, 100)}%`, backgroundColor: mS === 'warn' ? '#F59E0B' : '#00D5BE' }}
           />
         </div>
-        <span className={`mono text-sm shrink-0 w-10 text-right font-medium ${mS === 'warn' ? 'text-amber-600 dark:text-amber-400' : 'text-stone-500 dark:text-stone-400'}`}>
+        <span className={`mono text-sm shrink-0 w-10 text-right font-black ${mS === 'warn' ? 'text-amber-400' : 'text-white'}`}>
           {s.moist}%
         </span>
       </div>
 
-      <span className={`mono text-sm text-right ${tempOk ? 'text-stone-500' : 'text-amber-600'}`}>{s.temp}°C</span>
-      <span className="mono text-sm text-right text-stone-400 dark:text-stone-500">{s.lum}</span>
-      <span className="mono text-sm text-right text-stone-400 dark:text-stone-500">{s.fert}</span>
+      <span className={`mono text-sm text-right font-black ${tempOk ? 'text-white' : 'text-amber-400'}`}>{s.temp}°C</span>
+      <span className="mono text-sm text-right text-white/70 font-bold">{s.lum}</span>
+      <span className="mono text-sm text-right text-white/70 font-bold">{s.fert}</span>
     </div>
   )
 }
@@ -361,12 +352,13 @@ function CropRow({ crop, s }) {
 // ─── ROOM PANEL ───────────────────────────────────────────────────────────────
 function RoomPanel({ room }) {
   const co2S = room.co2 > 1200 ? 'crit' : room.co2 > 900 ? 'warn' : 'ok'
-  const co2Stroke = co2S === 'crit' ? '#ef4444' : co2S === 'warn' ? '#f59e0b' : '#94a3b8'
+  const co2Stroke = co2S === 'crit' ? '#EF4444' : co2S === 'warn' ? '#F59E0B' : '#00D5BE'
 
   return (
-    <Card className="p-6 flex flex-col gap-6 h-full">
-      <span className="text-xs font-semibold text-stone-400 dark:text-stone-600 uppercase tracking-widest">Середовище</span>
-
+    <Card className="p-5 flex flex-col gap-5 h-full">
+      <span className="text-xs font-black text-white uppercase tracking-widest pb-3" style={{ borderBottom: '2px solid rgba(255,255,255,0.2)' }}>
+        Середовище
+      </span>
       <div className="grid grid-cols-2 gap-x-4 gap-y-5 flex-1">
         <EnvStat label="Температура" value={room.temp} unit="°C" />
         <EnvStat label="Вологість"   value={room.hum}  unit="%" />
@@ -385,10 +377,10 @@ function RoomPanel({ room }) {
 function EnvStat({ label, value, unit, status = 'ok' }) {
   return (
     <div>
-      <div className="text-xs text-stone-400 dark:text-stone-600 uppercase tracking-wide mb-1.5">{label}</div>
+      <div className="text-[10px] text-white uppercase tracking-widest mb-1.5 font-black">{label}</div>
       <div className="flex items-baseline gap-1.5">
-        <span className={`mono text-3xl font-semibold leading-none ${valCls(status)}`}>{value}</span>
-        <span className="text-sm text-stone-400 dark:text-stone-600">{unit}</span>
+        <span className={`mono text-3xl font-black leading-none ${valCls(status)}`}>{value}</span>
+        <span className="text-sm text-white/60 font-bold">{unit}</span>
       </div>
     </div>
   )
@@ -397,7 +389,10 @@ function EnvStat({ label, value, unit, status = 'ok' }) {
 // ─── CAMERA ───────────────────────────────────────────────────────────────────
 function CameraCard() {
   return (
-    <Card className="flex-1 min-h-52 overflow-hidden relative bg-white dark:bg-[#1e1d1b]">
+    <div
+      className="flex-1 min-h-52 overflow-hidden relative"
+      style={{ border: '3px solid #E0E0E0', backgroundColor: '#000' }}
+    >
       <iframe
         src="https://www.youtube.com/embed/jfKfPfyJRdk?autoplay=1&mute=1&controls=1&rel=0"
         title="Камера лабораторії"
@@ -405,11 +400,11 @@ function CameraCard() {
         allowFullScreen
         className="absolute inset-0 w-full h-full border-0"
       />
-    </Card>
+    </div>
   )
 }
 
-// ─── JOURNAL ─────────────────────────────────────────────────────────────────
+// ─── JOURNAL ──────────────────────────────────────────────────────────────────
 function Journal({ entries, open, onToggle }) {
   const ref = useRef(null)
   useEffect(() => {
@@ -417,21 +412,21 @@ function Journal({ entries, open, onToggle }) {
   }, [entries])
 
   return (
-    <div className="border-t border-stone-200 dark:border-stone-800 pt-3">
+    <div className="pt-3" style={{ borderTop: '3px solid rgba(255,255,255,0.2)' }}>
       <button
         onClick={onToggle}
-        className="flex items-center gap-2 text-stone-400 dark:text-stone-600 hover:text-stone-600 dark:hover:text-stone-400 transition-colors mb-2"
+        className="flex items-center gap-2 text-white/60 hover:text-white transition-colors mb-2"
       >
         <Terminal size={12} />
-        <span className="text-xs">Системний журнал ({entries.length})</span>
+        <span className="text-xs font-black uppercase tracking-widest">Системний журнал ({entries.length})</span>
         {open ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
       </button>
       {open && (
-        <div ref={ref} className="h-28 overflow-y-auto bg-stone-50 dark:bg-stone-900 border border-stone-100 dark:border-stone-800 rounded-xl p-3 space-y-0.5">
+        <div ref={ref} className="h-28 overflow-y-auto bg-black p-3 space-y-0.5" style={{ border: '3px solid rgba(255,255,255,0.2)' }}>
           {entries.map((e, i) => (
             <div key={i} className="flex items-start gap-3">
-              <span className="mono text-[10px] text-stone-400 dark:text-stone-600 shrink-0 tabular-nums">{e.time}</span>
-              <span className={`mono text-[11px] ${e.level === 'warn' ? 'text-amber-600 dark:text-amber-500' : e.level === 'err' ? 'text-red-600 dark:text-red-500' : 'text-stone-500 dark:text-stone-500'}`}>
+              <span className="mono text-[10px] text-white/40 shrink-0 tabular-nums">{e.time}</span>
+              <span className={`mono text-[11px] font-bold ${e.level === 'warn' ? 'text-amber-400' : e.level === 'err' ? 'text-red-400' : 'text-white/70'}`}>
                 {e.msg}
               </span>
             </div>
@@ -442,9 +437,9 @@ function Journal({ entries, open, onToggle }) {
   )
 }
 
-// ─── APP ─────────────────────────────────────────────────────────────────────
-const NFT_CROPS = ['lettuce']   // Живильний шар — ідеально для листових
-const DWC_CROPS = ['spinach']   // Глибоководна культура
+// ─── APP ──────────────────────────────────────────────────────────────────────
+const NFT_CROPS = ['lettuce']
+const DWC_CROPS = ['spinach']
 
 export default function App() {
   const sensorsRef = useRef(null)
@@ -453,7 +448,6 @@ export default function App() {
   const [time, setTime]       = useState('')
   const [journal, setJournal] = useState([])
   const [logOpen, setLogOpen] = useState(false)
-  const [isDark, setIsDark]   = useState(false)
 
   const snapshot = useCallback(() => {
     const s = sensorsRef.current
@@ -533,10 +527,10 @@ export default function App() {
 
   if (!data) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-stone-50">
-        <div className="flex items-center gap-2 text-stone-400">
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="flex items-center gap-2 text-white/50">
           <RefreshCw size={16} className="animate-spin" />
-          <span>Ініціалізація…</span>
+          <span className="font-black uppercase tracking-widest text-sm">Ініціалізація…</span>
         </div>
       </div>
     )
@@ -554,41 +548,34 @@ export default function App() {
   const dwcCropNames = DWC_CROPS.map(id => CROPS.find(c => c.id === id)?.name).filter(Boolean)
 
   return (
-    <div className={`${isDark ? 'dark' : ''} min-h-screen bg-[#f5f4f0] dark:bg-[#141412] py-7 px-8 md:px-12`}>
+    <div className="min-h-screen bg-black py-7 px-8 md:px-12">
 
       {/* ── HEADER ── */}
       <header className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
-          <Leaf size={18} className="text-stone-400 shrink-0" />
-          <span className="text-lg font-semibold text-stone-800 dark:text-stone-100">Моніторинг лабораторії</span>
-          <span className="text-stone-300 dark:text-stone-700 mx-1">·</span>
-          <span className="text-stone-400 dark:text-stone-500">Кафедра екології та охорони здоров'я ЗУНУ</span>
+          <Leaf size={18} className="text-white shrink-0" />
+          <span className="text-lg font-black text-white uppercase tracking-wide">Моніторинг лабораторії</span>
+          <span className="text-white/40 mx-1">·</span>
+          <span className="text-white font-bold">Кафедра екології та охорони здоров'я ЗУНУ</span>
         </div>
-        <div className="flex items-center gap-5 text-stone-400 dark:text-stone-600">
+        <div className="flex items-center gap-5 text-white/60">
           <div className="flex items-center gap-1.5">
             <RefreshCw size={11} />
-            <span className="mono text-xs">#{tick}</span>
+            <span className="mono text-xs font-bold">#{tick}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Clock size={12} />
-            <span className="mono text-sm font-medium text-stone-600 dark:text-stone-400">{time}</span>
+            <span className="mono text-sm font-black text-white">{time}</span>
           </div>
-          <button
-            onClick={() => setIsDark(d => !d)}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors text-stone-400 dark:text-stone-500"
-            title={isDark ? 'Світла тема' : 'Темна тема'}
-          >
-            {isDark ? <Sun size={15} /> : <Moon size={15} />}
-          </button>
         </div>
       </header>
 
       {/* ── KPI BAR ── */}
-      <div className="mb-8">
+      <div className="mb-5">
         <KpiBar data={data} alerts={alertCount} />
       </div>
 
-      {/* ── ROW 1: Camera left · Crop Monitor right ── */}
+      {/* ── ROW 1: Video left (2/5) · Crop Monitor right (3/5) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 mb-5">
         <div className="lg:col-span-2 flex flex-col">
           <CameraCard />
@@ -600,7 +587,7 @@ export default function App() {
 
       {/* ── ROW 2: NFT · DWC · Environment ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-5">
-        <HydroCard name="Поживний розчин 1" abbr="Живильний шар"      sys={data.nft} cropNames={nftCropNames} />
+        <HydroCard name="Поживний розчин 1" abbr="Живильний шар"         sys={data.nft} cropNames={nftCropNames} />
         <HydroCard name="Поживний розчин 2" abbr="Глибоководна культура" sys={data.dwc} cropNames={dwcCropNames} />
         <RoomPanel room={data.room} />
       </div>
