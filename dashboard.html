@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GreenLab — Моніторинг</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Martian+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg:    #f4f4f4;
+      --srf:   #ffffff;
+      --srf2:  #fafafa;
+      --bdr:   #e5e5e5;
+      --bdr2:  #c0c0c0;
+      --txt:   #1b1b1b;
+      --txt2:  #616161;
+      --txt3:  #9e9e9e;
+      --ac:    #0e7a3e;
+      --ac-l:  #e8f4ee;
+      --ac-m:  #19a355;
+      --info:  #0066b4;
+      --warn:  #a05000;
+      --err:   #a42828;
+      --teal:  #006b5e;
+      --sh4:   0 1.6px 3.6px rgba(0,0,0,.11), 0 0.3px 0.9px rgba(0,0,0,.07);
+      --sh8:   0 3.2px 7.2px rgba(0,0,0,.13), 0 0.6px 1.8px rgba(0,0,0,.10);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 13px;
+      color: var(--txt);
+      background: var(--bg);
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ─────────────────────────────────────── */
+    header {
+      background: rgba(255,255,255,.9);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--bdr);
+      padding: 0 24px;
+      height: 52px;
+      display: flex; align-items: center;
+      position: sticky; top: 0; z-index: 100;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+
+    .logo { display: flex; align-items: center; gap: 9px; margin-right: 20px; }
+    .logo-icon {
+      width: 28px; height: 28px;
+      background: var(--ac); border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; flex-shrink: 0;
+    }
+    .logo-text { font-size: 15px; font-weight: 700; letter-spacing: -.3px; }
+    .logo-text em { color: var(--ac); font-style: normal; }
+
+    .hd-sep { width: 1px; height: 18px; background: var(--bdr); margin: 0 16px; }
+
+    .hd-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ac); font-weight: 500; }
+    .hd-dot    { width: 6px; height: 6px; border-radius: 50%; background: var(--ac); }
+
+    .hd-right { margin-left: auto; display: flex; align-items: center; gap: 20px; }
+    .hd-meta  { font-size: 12px; color: var(--txt3); }
+    .hd-clock { font-family: 'Martian Mono', monospace; font-size: 13px; font-weight: 500; letter-spacing: .5px; }
+
+    /* ── MAIN ───────────────────────────────────────── */
+    main { padding: 20px 24px; display: flex; flex-direction: column; gap: 20px; }
+
+    .sec { display: flex; flex-direction: column; gap: 10px; }
+    .sec-label {
+      font-size: 11px; font-weight: 600; letter-spacing: .8px;
+      text-transform: uppercase; color: var(--txt3);
+    }
+
+    /* ── CARDS ──────────────────────────────────────── */
+    .card {
+      background: var(--srf);
+      border-radius: 8px;
+      box-shadow: var(--sh4);
+      overflow: hidden;
+    }
+    .card-head {
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--bdr);
+      display: flex; align-items: flex-start; justify-content: space-between;
+    }
+    .card-title    { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 7px; }
+    .card-subtitle { font-size: 11px; color: var(--txt3); margin-top: 2px; }
+
+    .badge {
+      font-size: 11px; font-weight: 600;
+      padding: 2px 8px; border-radius: 4px; transition: all .3s;
+    }
+    .b-ok   { background: var(--ac-l); color: var(--ac); }
+    .b-warn { background: #fff3e0;     color: var(--warn); }
+
+    /* ── GRIDS ──────────────────────────────────────── */
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    /* ── ENV LAYOUT ─────────────────────────────────── */
+    .env-layout { display: grid; grid-template-columns: 1.55fr 1fr; gap: 10px; align-items: stretch; }
+
+    /* Camera */
+    .cam-screen {
+      background: #0c1209; aspect-ratio: 16/9;
+      position: relative;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 8px;
+    }
+    .cam-scan {
+      position: absolute; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(80,200,120,.2), transparent);
+      animation: scan 7s linear infinite;
+    }
+    @keyframes scan { 0%{top:0} 100%{top:100%} }
+    .cam-c {
+      position: absolute; width: 13px; height: 13px;
+      border-color: rgba(80,210,120,.4); border-style: solid; border-width: 0;
+    }
+    .cam-c.tl{top:10px;left:10px;border-top-width:1.5px;border-left-width:1.5px}
+    .cam-c.tr{top:10px;right:10px;border-top-width:1.5px;border-right-width:1.5px}
+    .cam-c.bl{bottom:10px;left:10px;border-bottom-width:1.5px;border-left-width:1.5px}
+    .cam-c.br{bottom:10px;right:10px;border-bottom-width:1.5px;border-right-width:1.5px}
+    .cam-live {
+      position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+      font-size: 8px; letter-spacing: 2px; padding: 2px 8px;
+      background: rgba(0,0,0,.6); border: 1px solid rgba(80,210,120,.28);
+      color: rgba(110,230,150,.55); border-radius: 2px; white-space: nowrap;
+    }
+    .cam-ico { font-size: 34px; opacity: .09; }
+    .cam-lbl { font-size: 10px; color: rgba(255,255,255,.22); letter-spacing: 2px; }
+    .cam-sub { font-size: 10px; color: rgba(255,255,255,.09); }
+    .cam-foot {
+      padding: 9px 14px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-top: 1px solid var(--bdr);
+    }
+    .cam-foot strong { font-size: 12px; font-weight: 600; }
+    .cam-foot span   { font-size: 11px; color: var(--txt3); }
+
+    /* Env metric list (right column) */
+    .env-card {
+      background: var(--srf); border-radius: 8px;
+      box-shadow: var(--sh4); overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    .env-row {
+      flex: 1;
+      padding: 0 14px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--bdr); min-height: 56px;
+    }
+    .env-row:last-child { border-bottom: none; }
+    .env-left  { display: flex; align-items: center; gap: 10px; }
+    .env-icon  {
+      width: 30px; height: 30px; border-radius: 6px;
+      background: var(--srf2); display: flex; align-items: center;
+      justify-content: center; font-size: 14px; flex-shrink: 0;
+    }
+    .env-name  { font-size: 12px; font-weight: 500; }
+    .env-sub   { font-size: 10px; color: var(--txt3); margin-top: 1px; }
+    .env-right { text-align: right; }
+    .env-val   {
+      font-family: 'Martian Mono', monospace;
+      font-size: 20px; font-weight: 500;
+      font-variant-numeric: tabular-nums;
+      line-height: 1; transition: color .4s;
+    }
+    .env-unit  { font-size: 10px; color: var(--txt3); margin-top: 2px; }
+
+    /* ── AQUAPONICS ──────────────────────────────────── */
+    .aqua-body { display: flex; gap: 0; }
+    .aqua-tank { padding: 14px 12px 14px 16px; display: flex; flex-direction: column; align-items: center; gap: 5px; flex-shrink: 0; }
+
+    .tank {
+      width: 36px; height: 62px;
+      border: 1.5px solid var(--bdr2); border-radius: 3px 3px 5px 5px;
+      position: relative; overflow: hidden; background: var(--srf2);
+    }
+    .tank-water {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: rgba(14,122,62,.13);
+      border-top: 1.5px solid rgba(14,122,62,.4);
+      transition: height 2s cubic-bezier(.4,0,.2,1);
+    }
+    .tank-pct {
+      position: relative; z-index: 1;
+      font-family: 'Martian Mono', monospace;
+      font-size: 8px; font-weight: 600;
+      text-align: center; color: var(--ac); padding-top: 3px;
+    }
+    .tank-lbl { font-size: 9px; color: var(--txt3); }
+
+    .aqua-divider { width: 1px; background: var(--bdr); flex-shrink: 0; margin: 12px 0; }
+
+    .metric-list { flex: 1; padding: 6px 16px 6px 12px; display: flex; flex-direction: column; justify-content: center; }
+    .mrow {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 5px 0; border-bottom: 1px solid var(--bdr);
+    }
+    .mrow:last-child { border-bottom: none; }
+    .mrow-lbl { font-size: 12px; color: var(--txt2); }
+    .mrow-val {
+      font-family: 'Martian Mono', monospace;
+      font-size: 13px; font-weight: 500;
+      font-variant-numeric: tabular-nums; transition: color .4s;
+    }
+    .mrow-unit { font-size: 10px; color: var(--txt3); margin-left: 2px; }
+
+    .pump-bar {
+      padding: 8px 16px; border-top: 1px solid var(--bdr);
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px; background: var(--srf2);
+    }
+    .pdot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; transition: all .3s; }
+    .pdot.on  { background: var(--ac); box-shadow: 0 0 0 2px var(--ac-l); }
+    .pdot.off { background: var(--bdr2); }
+    .p-meta { margin-left: auto; font-size: 11px; color: var(--txt3); }
+
+    .minichart { height: 40px; padding: 0 14px 8px; }
+
+    /* ── PLANT BOXES ─────────────────────────────────── */
+    .plant-summary {
+      display: grid; grid-template-columns: repeat(4,1fr);
+      border-bottom: 1px solid var(--bdr);
+    }
+    .psm {
+      padding: 12px 10px; text-align: center;
+      border-right: 1px solid var(--bdr);
+    }
+    .psm:last-child { border-right: none; }
+    .psm-val {
+      font-family: 'Martian Mono', monospace;
+      font-size: 18px; font-weight: 500;
+      font-variant-numeric: tabular-nums; transition: color .4s;
+    }
+    .psm-lbl { font-size: 10px; color: var(--txt3); margin-top: 3px; }
+
+    .tray {
+      padding: 12px;
+      display: grid; grid-template-columns: repeat(4,1fr); gap: 8px;
+      background: var(--srf2);
+    }
+    .pnode {
+      background: var(--srf); border-radius: 6px;
+      padding: 9px 6px; text-align: center;
+      box-shadow: 0 1px 2px rgba(0,0,0,.06);
+      border-top: 2.5px solid var(--ac);
+      transition: border-top-color .4s;
+    }
+    .pnode.warn  { border-top-color: #e65c00; }
+    .pnode.alert { border-top-color: var(--err); }
+    .pnode-ico { font-size: 16px; display: block; margin-bottom: 3px; }
+    .pnode-id  { font-size: 8.5px; color: var(--txt3); line-height: 1.3; margin-bottom: 3px; }
+    .pnode-val {
+      font-family: 'Martian Mono', monospace;
+      font-size: 11px; font-weight: 500; font-variant-numeric: tabular-nums;
+    }
+    .pbar      { width: 100%; height: 3px; background: var(--bdr); border-radius: 2px; overflow: hidden; margin-top: 5px; }
+    .pbar-f    { height: 100%; border-radius: 2px; background: var(--ac); transition: width .9s, background .5s; }
+
+    /* ── LOG ────────────────────────────────────────── */
+    .log-body {
+      max-height: 108px; overflow-y: auto; padding: 2px 0;
+    }
+    .log-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 7px 16px; font-size: 12px;
+      border-bottom: 1px solid var(--bdr);
+      transition: background .15s;
+    }
+    .log-row:last-child { border-bottom: none; }
+    .log-row:hover { background: var(--srf2); }
+    .log-t {
+      font-family: 'Martian Mono', monospace;
+      font-size: 11px; color: var(--txt3); min-width: 56px; flex-shrink: 0;
+    }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--bdr); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">🌿</div>
+    <div class="logo-text">Green<em>Lab</em></div>
+  </div>
+  <div class="hd-sep"></div>
+  <div class="hd-status">
+    <div class="hd-dot"></div>
+    Всі системи в нормі
+  </div>
+  <div class="hd-right">
+    <span class="hd-meta">Лаб. кімн. А · Стелаж · <span id="last-upd">—</span></span>
+    <div class="hd-clock" id="clock">—</div>
+  </div>
+</header>
+
+<main>
+
+  <!-- СЕРЕДОВИЩЕ -->
+  <div class="sec">
+    <p class="sec-label">Середовище</p>
+    <div class="env-layout">
+
+      <!-- Webcam -->
+      <div class="card">
+        <div class="cam-screen">
+          <div class="cam-c tl"></div><div class="cam-c tr"></div>
+          <div class="cam-c bl"></div><div class="cam-c br"></div>
+          <div class="cam-scan"></div>
+          <div class="cam-live">● ПРЯМА ТРАНСЛЯЦІЯ</div>
+          <div class="cam-ico">📷</div>
+          <div class="cam-lbl">ВІДЕОПОТІК</div>
+          <div class="cam-sub">Підключіть RTSP або USB камеру</div>
+        </div>
+        <div class="cam-foot">
+          <strong>Камера огляду лабораторії</strong>
+          <span>1920 × 1080 · 30 кадр/с</span>
+        </div>
+      </div>
+
+      <!-- Env metrics -->
+      <div class="env-card">
+        <div class="env-row">
+          <div class="env-left">
+            <div class="env-icon">🌡</div>
+            <div>
+              <div class="env-name">Температура повітря</div>
+              <div class="env-sub">ENV-01 + ENV-02, середнє</div>
+            </div>
+          </div>
+          <div class="env-right">
+            <div class="env-val" id="r-temp" style="color:var(--ac)">—</div>
+            <div class="env-unit">°C</div>
+          </div>
+        </div>
+        <div class="env-row">
+          <div class="env-left">
+            <div class="env-icon">💧</div>
+            <div>
+              <div class="env-name">Відносна вологість</div>
+              <div class="env-sub">ENV-01 + ENV-02, середнє</div>
+            </div>
+          </div>
+          <div class="env-right">
+            <div class="env-val" id="r-hum" style="color:var(--info)">—</div>
+            <div class="env-unit">% ВВ</div>
+          </div>
+        </div>
+        <div class="env-row">
+          <div class="env-left">
+            <div class="env-icon">💨</div>
+            <div>
+              <div class="env-name">Концентрація CO₂</div>
+              <div class="env-sub">ENV-CO2 (розрахунковий)</div>
+            </div>
+          </div>
+          <div class="env-right">
+            <div class="env-val" id="r-co2" style="color:#5c38a0">—</div>
+            <div class="env-unit">ppm</div>
+          </div>
+        </div>
+        <div class="env-row">
+          <div class="env-left">
+            <div class="env-icon">☀</div>
+            <div>
+              <div class="env-name">Освітленість</div>
+              <div class="env-sub">Розклад 06:00–22:00</div>
+            </div>
+          </div>
+          <div class="env-right">
+            <div class="env-val" id="r-lux" style="color:var(--warn)">—</div>
+            <div class="env-unit">люкс</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ГІДРОПОНІКА -->
+  <div class="sec">
+    <p class="sec-label">Гідропоніка</p>
+    <div class="grid2">
+
+      <!-- Резервуар 1 -->
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="card-title"><span>💧</span> Система 1 — NFT</div>
+            <div class="card-subtitle">Живильний розчин · ВТ-01 · ПОМПА-01</div>
+          </div>
+          <div class="badge b-ok" id="a1-badge">ОПТИМАЛЬНО</div>
+        </div>
+        <div class="aqua-body">
+          <div class="aqua-tank">
+            <div class="tank">
+              <div class="tank-water" id="a1-fill" style="height:88%">
+                <div class="tank-pct" id="a1-lv">88%</div>
+              </div>
+            </div>
+            <div class="tank-lbl">РІВЕНЬ</div>
+          </div>
+          <div class="aqua-divider"></div>
+          <div class="metric-list">
+            <div class="mrow"><span class="mrow-lbl">Температура</span>    <span><span class="mrow-val" id="a1-wt" style="color:var(--info)">—</span><span class="mrow-unit">°C</span></span></div>
+            <div class="mrow"><span class="mrow-lbl">pH</span>              <span><span class="mrow-val" id="a1-ph" style="color:var(--ac)">—</span></span></div>
+            <div class="mrow"><span class="mrow-lbl">Розч. O₂</span>       <span><span class="mrow-val" id="a1-do" style="color:var(--teal)">—</span><span class="mrow-unit">мг/л</span></span></div>
+            <div class="mrow"><span class="mrow-lbl">Провідність</span>     <span><span class="mrow-val" id="a1-ec" style="color:var(--warn)">—</span><span class="mrow-unit">мкСм</span></span></div>
+            <div class="mrow"><span class="mrow-lbl">Аміак NH₃</span>      <span><span class="mrow-val" id="a1-nh" style="color:var(--err)">—</span><span class="mrow-unit">мг/л</span></span></div>
+          </div>
+        </div>
+        <div class="pump-bar">
+          <div class="pdot on" id="p1-dot"></div>
+          <span>П1 — <span id="p1-st" style="color:var(--ac);font-weight:600">АКТИВНА</span></span>
+          <span class="p-meta" id="p1-rt">—</span>
+        </div>
+        <div class="minichart"><canvas id="ch-a1"></canvas></div>
+      </div>
+
+      <!-- Резервуар 2 -->
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="card-title"><span>💧</span> Система 2 — DWC</div>
+            <div class="card-subtitle">Живильний розчин · ВТ-02 · ПОМПА-02</div>
+          </div>
+          <div class="badge b-ok" id="a2-badge">ОПТИМАЛЬНО</div>
+        </div>
+        <div class="aqua-body">
+          <div class="aqua-tank">
+            <div class="tank">
+              <div class="tank-water" id="a2-fill" style="height:83%">
+                <div class="tank-pct" id="a2-lv">83%</div>
+              </div>
+            </div>
+            <div class="tank-lbl">РІВЕНЬ</div>
+          </div>
+          <div class="aqua-divider"></div>
+          <div class="metric-list">
+            <div class="mrow"><span class="mrow-lbl">Температура</span>    <span><span class="mrow-val" id="a2-wt" style="color:var(--info)">—</span><span class="mrow-unit">°C</span></span></div>
+            <div class="mrow"><span class="mrow-lbl">pH</span>              <span><span class="mrow-val" id="a2-ph" style="color:var(--ac)">—</span></span></div>
+            <div class="mrow"><span class="mrow-lbl">Розч. O₂</span>       <span><span class="mrow-val" id="a2-do" style="color:var(--teal)">—</span><span class="mrow-unit">мг/л</span></span></div>
+            <div class="mrow"><span class="mrow-lbl">Провідність</span>     <span><span class="mrow-val" id="a2-ec" style="color:var(--warn)">—</span><span class="mrow-unit">мкСм</span></span></div>
+            <div class="mrow"><span class="mrow-lbl">Аміак NH₃</span>      <span><span class="mrow-val" id="a2-nh" style="color:var(--err)">—</span><span class="mrow-unit">мг/л</span></span></div>
+          </div>
+        </div>
+        <div class="pump-bar">
+          <div class="pdot off" id="p2-dot"></div>
+          <span>П2 — <span id="p2-st" style="color:var(--txt3);font-weight:600">ОЧІКУВАННЯ</span></span>
+          <span class="p-meta" id="p2-info">—</span>
+        </div>
+        <div class="minichart"><canvas id="ch-a2"></canvas></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- БЛОКИ ВИРОЩУВАННЯ -->
+  <div class="sec">
+    <p class="sec-label">Блоки вирощування</p>
+    <div class="grid2">
+
+      <!-- Блок А -->
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="card-title"><span>🌿</span> Блок А</div>
+            <div class="card-subtitle">8 рослин · Базилік та Салат · ҐРУНТ-01</div>
+          </div>
+          <div class="badge b-ok" id="b1-badge">НОРМА</div>
+        </div>
+        <div class="plant-summary">
+          <div class="psm"><div class="psm-val" id="b1-moist" style="color:var(--info)">—</div><div class="psm-lbl">Вологість %</div></div>
+          <div class="psm"><div class="psm-val" id="b1-st"    style="color:var(--warn)">—</div><div class="psm-lbl">Ґрунт °C</div></div>
+          <div class="psm"><div class="psm-val" id="b1-lux"   style="color:#a05000">—</div><div class="psm-lbl">Люкс</div></div>
+          <div class="psm"><div class="psm-val" id="b1-ec"    style="color:var(--teal)">—</div><div class="psm-lbl">Родючість</div></div>
+        </div>
+        <div class="tray" id="tray-b1"></div>
+      </div>
+
+      <!-- Блок Б -->
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="card-title"><span>🌱</span> Блок Б</div>
+            <div class="card-subtitle">8 рослин · Томат та Шпинат · ҐРУНТ-02</div>
+          </div>
+          <div class="badge b-ok" id="b2-badge">НОРМА</div>
+        </div>
+        <div class="plant-summary">
+          <div class="psm"><div class="psm-val" id="b2-moist" style="color:var(--info)">—</div><div class="psm-lbl">Вологість %</div></div>
+          <div class="psm"><div class="psm-val" id="b2-st"    style="color:var(--warn)">—</div><div class="psm-lbl">Ґрунт °C</div></div>
+          <div class="psm"><div class="psm-val" id="b2-lux"   style="color:#a05000">—</div><div class="psm-lbl">Люкс</div></div>
+          <div class="psm"><div class="psm-val" id="b2-ec"    style="color:var(--teal)">—</div><div class="psm-lbl">Родючість</div></div>
+        </div>
+        <div class="tray" id="tray-b2"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ЖУРНАЛ -->
+  <div class="sec">
+    <p class="sec-label">Системний журнал</p>
+    <div class="card">
+      <div class="log-body" id="log"></div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+class Sensor {
+  constructor(init, min, max, noise, dec = 1) {
+    this.v = init; this.min = min; this.max = max;
+    this.noise = noise; this.dec = dec;
+    this.trend = 0; this.ttl = 0;
+    this.hist = Array(32).fill(init);
+  }
+  tick() {
+    if (--this.ttl <= 0) {
+      this.trend = (Math.random() - .5) * this.noise * .4;
+      this.ttl = 15 + (Math.random() * 35 | 0);
+    }
+    const c = (this.max + this.min) / 2;
+    this.v += (c - this.v) * .002 + (Math.random() - .5) * this.noise + this.trend;
+    this.v = Math.max(this.min, Math.min(this.max, this.v));
+    this.hist.push(this.v);
+    if (this.hist.length > 32) this.hist.shift();
+    return this.get();
+  }
+  get() { return +this.v.toFixed(this.dec); }
+}
+
+const S = {
+  rT1:  new Sensor(23.4, 21,   27,   .09),
+  rT2:  new Sensor(24.1, 21,   27,   .09),
+  rH1:  new Sensor(67,   58,   78,   .35),
+  rH2:  new Sensor(65,   58,   78,   .35),
+  rCO2: new Sensor(920,  650, 1300,  9,   0),
+  rLux: new Sensor(485,  340,  660,  6,   0),
+  a1wt: new Sensor(24.2, 22,   27,  .05),
+  a1ph: new Sensor(7.05, 6.4,  7.7, .018),
+  a1do: new Sensor(7.3,  5.5,  9.2, .04),
+  a1ec: new Sensor(630,  380,  920,  5,   0),
+  a1lv: new Sensor(88,   74,   99,  .2),
+  a1nh: new Sensor(.12,  .02,  .55, .004, 2),
+  a2wt: new Sensor(23.7, 22,   27,  .05),
+  a2ph: new Sensor(7.12, 6.4,  7.7, .018),
+  a2do: new Sensor(6.85, 5.5,  9.2, .04),
+  a2ec: new Sensor(575,  380,  920,  5,   0),
+  a2lv: new Sensor(83,   74,   99,  .2),
+  a2nh: new Sensor(.16,  .02,  .55, .004, 2),
+  b1m:  new Sensor(63,   40,   80,  .28),
+  b1t:  new Sensor(22.4, 18,   28,  .07),
+  b1l:  new Sensor(505,  340,  700,  6,   0),
+  b1e:  new Sensor(2.15, 1.1,  3.9, .012),
+  b2m:  new Sensor(59,   40,   80,  .28),
+  b2t:  new Sensor(23.0, 18,   28,  .07),
+  b2l:  new Sensor(490,  340,  700,  6,   0),
+  b2e:  new Sensor(2.45, 1.1,  3.9, .012),
+};
+
+const PLANTS = {
+  b1: {
+    names:   ['Базилік №1','Базилік №2','Базилік №3','Базилік №4','Салат №1','Салат №2','Салат №3','Салат №4'],
+    emojis:  ['🌿','🌿','🌿','🌿','🥬','🥬','🥬','🥬'],
+    offsets: [0, 2, -3, 1, 4, -2, 3, -1],
+  },
+  b2: {
+    names:   ['Томат №1','Томат №2','Томат №3','Томат №4','Шпинат №1','Шпинат №2','Шпинат №3','Шпинат №4'],
+    emojis:  ['🍅','🍅','🍅','🍅','🌱','🌱','🌱','🌱'],
+    offsets: [0, -2, 3, 1, -3, 2, -1, 4],
+  },
+};
+
+function buildTrays() {
+  ['b1','b2'].forEach(box => {
+    const tray = document.getElementById('tray-' + box);
+    PLANTS[box].names.forEach((name, i) => {
+      tray.insertAdjacentHTML('beforeend', `
+        <div class="pnode ok" id="${box}-p${i}">
+          <span class="pnode-ico">${PLANTS[box].emojis[i]}</span>
+          <div class="pnode-id">${name}</div>
+          <div class="pnode-val" id="${box}-pm${i}">—%</div>
+          <div class="pbar"><div class="pbar-f" id="${box}-pb${i}" style="width:60%"></div></div>
+        </div>`);
+    });
+  });
+}
+
+function updateTray(box, avgM, avgT) {
+  PLANTS[box].offsets.forEach((off, i) => {
+    const m = Math.max(22, Math.min(94, avgM + off + (Math.random()-.5)*.25));
+    const t = avgT + off * .09;
+    let cls = 'ok';
+    if (m < 35 || m > 82 || t > 28 || t < 16) cls = 'alert';
+    else if (m < 45 || m > 72 || t > 26)       cls = 'warn';
+    const el = document.getElementById(`${box}-p${i}`);
+    if (el) el.className = 'pnode ' + cls;
+    const pm = document.getElementById(`${box}-pm${i}`);
+    if (pm) pm.textContent = m.toFixed(0) + '%';
+    const pb = document.getElementById(`${box}-pb${i}`);
+    if (pb) {
+      pb.style.width = m.toFixed(0) + '%';
+      pb.style.background = m < 35 || m > 82 ? '#a42828' : m < 45 || m > 72 ? '#e65c00' : '#0e7a3e';
+    }
+  });
+}
+
+function tempCol(v)  { return v<20||v>28?'#a42828':v<22||v>26?'#a05000':'#0e7a3e'; }
+function humCol(v)   { return v<50||v>85?'#a42828':v<58||v>78?'#a05000':'#0066b4'; }
+function co2Col(v)   { return v>1500?'#a42828':v>1200?'#a05000':'#5c38a0'; }
+function phCol(v)    { return v<6.0||v>8.0?'#a42828':v<6.5||v>7.5?'#a05000':'#0e7a3e'; }
+
+const $  = id => document.getElementById(id);
+const tx = (id, v) => { const e=$(id); if(e) e.textContent=v; };
+const cl = (id, c) => { const e=$(id); if(e) e.style.color=c; };
+
+function makeChart(id, color) {
+  return new Chart($(id), {
+    type: 'line',
+    data: {
+      labels: Array(32).fill(''),
+      datasets:[{ data: Array(32).fill(0), borderColor: color, borderWidth: 1.5,
+        fill: true, backgroundColor: color + '18',
+        tension: .4, pointRadius: 0 }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{enabled:false} },
+      scales:{ x:{display:false}, y:{display:false, grace:'8%'} },
+      animation:{ duration:300 }
+    }
+  });
+}
+let chA1, chA2;
+
+const P1_ON=36, P1_OFF=12, P2_ON=12, P2_OFF=20;
+let p1On=true, p1T=0, p2On=false, p2T=0;
+const fmtT = t => { const s=t*5; return s<60?s+'с':`${Math.floor(s/60)}хв ${s%60}с`; };
+
+const EVENTS = [];
+function addLog(ico, msg, col='#616161') {
+  const t = new Date().toTimeString().slice(0,8);
+  EVENTS.unshift({t,ico,msg,col});
+  if (EVENTS.length > 14) EVENTS.pop();
+  $('log').innerHTML = EVENTS.slice(0,6).map(e =>
+    `<div class="log-row">
+      <span class="log-t">${e.t}</span>
+      <span>${e.ico}</span>
+      <span style="color:${e.col}">${e.msg}</span>
+    </div>`).join('');
+}
+
+function badge(id, warn, plant=false) {
+  const el=$(id); if(!el) return;
+  el.className = warn?'badge b-warn':'badge b-ok';
+  el.textContent = warn?(plant?'УВАГА':'КОНТРОЛЬ'):(plant?'НОРМА':'ОПТИМАЛЬНО');
+}
+
+let tick = 0;
+function update() {
+  tick++;
+  Object.values(S).forEach(s => s.tick());
+
+  const rT = (S.rT1.get() + S.rT2.get()) / 2;
+  const rH = (S.rH1.get() + S.rH2.get()) / 2;
+  tx('r-temp', rT.toFixed(1)); cl('r-temp', tempCol(rT));
+  tx('r-hum',  rH.toFixed(1)); cl('r-hum',  humCol(rH));
+  tx('r-co2',  S.rCO2.get()); cl('r-co2', co2Col(S.rCO2.get()));
+  tx('r-lux',  S.rLux.get());
+
+  const a1lv=S.a1lv.get(), a1ph=S.a1ph.get();
+  tx('a1-wt', S.a1wt.get().toFixed(1));
+  tx('a1-ph', a1ph.toFixed(2)); cl('a1-ph', phCol(a1ph));
+  tx('a1-do', S.a1do.get().toFixed(1));
+  tx('a1-ec', S.a1ec.get());
+  tx('a1-lv', a1lv.toFixed(0)+'%');
+  tx('a1-nh', S.a1nh.get().toFixed(2));
+  const f1=$('a1-fill'); if(f1) f1.style.height=a1lv.toFixed(0)+'%';
+  if(chA1){ chA1.data.datasets[0].data=S.a1wt.hist.slice(); chA1.update('none'); }
+
+  if(++p1T>(p1On?P1_ON:P1_OFF)){
+    p1On=!p1On; p1T=0;
+    if(p1On) addLog('✓','Помпа П1 перезапущена — цикл завершено','#0e7a3e');
+    else     addLog('○','Помпа П1 переходить в очікування','#a05000');
+  }
+  $('p1-dot').className='pdot '+(p1On?'on':'off');
+  tx('p1-st', p1On?'АКТИВНА':'ОЧІКУВАННЯ'); cl('p1-st', p1On?'#0e7a3e':'#9e9e9e');
+  tx('p1-rt', p1On?fmtT(p1T):'охолодження');
+  badge('a1-badge', a1ph<6.5||a1ph>7.5||S.a1nh.get()>.4);
+
+  const a2lv=S.a2lv.get(), a2ph=S.a2ph.get();
+  tx('a2-wt', S.a2wt.get().toFixed(1));
+  tx('a2-ph', a2ph.toFixed(2)); cl('a2-ph', phCol(a2ph));
+  tx('a2-do', S.a2do.get().toFixed(1));
+  tx('a2-ec', S.a2ec.get());
+  tx('a2-lv', a2lv.toFixed(0)+'%');
+  tx('a2-nh', S.a2nh.get().toFixed(2));
+  const f2=$('a2-fill'); if(f2) f2.style.height=a2lv.toFixed(0)+'%';
+  if(chA2){ chA2.data.datasets[0].data=S.a2wt.hist.slice(); chA2.update('none'); }
+
+  if(++p2T>(p2On?P2_ON:P2_OFF)){
+    p2On=!p2On; p2T=0;
+    if(p2On) addLog('↺','Помпа П2 активована — цикл циркуляції','#0066b4');
+  }
+  $('p2-dot').className='pdot '+(p2On?'on':'off');
+  tx('p2-st', p2On?'АКТИВНА':'ОЧІКУВАННЯ'); cl('p2-st', p2On?'#0e7a3e':'#9e9e9e');
+  tx('p2-info', p2On?`зупинка через ${fmtT(P2_ON-p2T)}`:`наст. ${fmtT(P2_OFF-p2T)}`);
+  badge('a2-badge', a2ph<6.5||a2ph>7.5||S.a2nh.get()>.4);
+
+  const b1m=S.b1m.get(), b1t=S.b1t.get();
+  tx('b1-moist', b1m.toFixed(0));
+  tx('b1-st',    b1t.toFixed(1));
+  tx('b1-lux',   S.b1l.get());
+  tx('b1-ec',    S.b1e.get().toFixed(1));
+  updateTray('b1', b1m, b1t);
+  badge('b1-badge', b1m<40||b1m>78||b1t>27, true);
+
+  const b2m=S.b2m.get(), b2t=S.b2t.get();
+  tx('b2-moist', b2m.toFixed(0));
+  tx('b2-st',    b2t.toFixed(1));
+  tx('b2-lux',   S.b2l.get());
+  tx('b2-ec',    S.b2e.get().toFixed(1));
+  updateTray('b2', b2m, b2t);
+  badge('b2-badge', b2m<40||b2m>78||b2t>27, true);
+
+  if(tick%72===0) addLog('◈','Знімок даних — всі параметри в нормі','#616161');
+  if(tick%48===5) addLog('⬡','Zigbee: зв\'язок стабільний — 8 пристроїв онлайн','#0066b4');
+
+  $('last-upd').textContent = new Date().toTimeString().slice(0,8);
+}
+
+function tickClock() { $('clock').textContent = new Date().toLocaleTimeString('uk-UA'); }
+
+document.addEventListener('DOMContentLoaded', () => {
+  buildTrays();
+  chA1 = makeChart('ch-a1', '#0066b4');
+  chA2 = makeChart('ch-a2', '#006b5e');
+
+  addLog('●','Панель ініціалізована — всі системи онлайн','#0e7a3e');
+  addLog('⬡','Zigbee координатор готовий — 8 пристроїв активних','#0066b4');
+  addLog('◈','Розклад поливу завантажено: 06:00 · 14:00 · 20:00','#006b5e');
+  addLog('~','Гідропонічні системи підключені — якість розчину в нормі','#0066b4');
+
+  setInterval(tickClock, 1000);
+  setInterval(update, 5000);
+  tickClock();
+  update();
+});
+</script>
+</body>
+</html>
