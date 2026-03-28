@@ -394,7 +394,7 @@ function CameraCard() {
       style={{ border: '3px solid #E0E0E0', backgroundColor: '#000' }}
     >
       <iframe
-        src="https://www.youtube.com/embed/hhUrfIi0mnc?autoplay=1&mute=1&controls=1&rel=0"
+        src="https://www.youtube.com/embed/RBeI20JZfmY?autoplay=1&mute=1&controls=1&rel=0"
         title="Камера лабораторії"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         allowFullScreen
